@@ -98,7 +98,7 @@ def read_vectorized_features(data_dir, subset=None):
         if subset == "train":
             return X_train, y_train
 
-    if subset is None or subset == "train":
+    if subset is None or subset == "test":
         X_test_path = os.path.join(data_dir, "X_test.dat")
         y_test_path = os.path.join(data_dir, "y_test.dat")
         X_test = np.memmap(X_test_path, dtype=np.float32, mode="r", shape=(200000, ndim))
