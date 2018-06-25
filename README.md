@@ -42,7 +42,7 @@ Ember requires Python 3. The ember model was built and the [Jupyter notebook](ht
 ```
 conda env create -f environment.yml -n emberenv
 source activate emberenv
-pip install lief==0.8.3
+pip install lief==0.8.3.post3
 python setup.py install
 ```
 
@@ -51,7 +51,7 @@ If you don't need the extra packages to run the Jupyter notebook, then you can u
 ```
 conda env create -f environment_minimal.yml -n emberenv
 source activate emberenv
-pip install lief==0.8.3
+pip install lief==0.8.3.post3
 python setup.py install
 ```
 
