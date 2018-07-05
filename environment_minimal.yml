@@ -11,7 +11,7 @@ dependencies:
 - openblas=0.2.20=7
 - openssl=1.0.2n=0
 - pandas=0.22.0=py36_0
-- pip=9.0.2=py36_0
+- pip=9.0.3=py36_0
 - python=3.6.4=0
 - python-dateutil=2.7.0=py_0
 - pytz=2018.3=py_0
