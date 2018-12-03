@@ -1,6 +1,6 @@
 <img src="resources/logo.png" align="right" width="250px" height="250px">
 
-# Endgame Malware BEnchmark for Research
+# Endgame Malware Benchmark for Research
 
 The ember dataset is a collection of 1.1 million sha256 hashes from PE files that were scanned sometime in 2017. This repository makes it easy to reproducibly train the benchmark model, extend the provided feature set, or classify new PE files with the benchmark model.
 
