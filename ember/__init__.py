@@ -133,7 +133,7 @@ def create_metadata(data_dir):
 
     metadf = pd.DataFrame(train_records + test_records)[["sha256", "appeared", "subset", "label"]]
     # metadf.to_csv(os.path.join(data_dir, "metadata.csv"))
-    for sha in metadf[["sha256]]:
+    for sha in metadf[["sha256"]]:
         print(sha)
     return metadf
 
