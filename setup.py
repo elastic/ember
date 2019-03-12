@@ -7,7 +7,7 @@ try:
 except ImportError:
     from distutils.core import setup
 
-with open(os.path.join(os.path.dirname(__file__), "README.md")) as f:
+with open(os.path.join(os.path.dirname(__file__), "README.md"), encoding="UTF-8") as f:
     readme = f.read()
 
 version = "0.1.0"
