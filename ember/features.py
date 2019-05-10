@@ -209,7 +209,9 @@ class ImportsInfo(FeatureType):
 
             # Clipping assumes there are diminishing returns on the discriminatory power of imported functions
             #  beyond the first 10000 characters, and this will help limit the dataset size
-            imports[lib.name].extend([entry.name[:10000] for entry in lib.entries])
+            for entry in lib.entries:
+                if not entry.is_ordinal:
+                    imports[lib.name].append(entry.name[:10000])
 
         return imports
 
@@ -290,13 +292,12 @@ class GeneralFileInfo(FeatureType):
         }
 
     def process_raw_features(self, raw_obj):
-        return np.asarray(
-            [
-                raw_obj['size'], raw_obj['vsize'], raw_obj['has_debug'], raw_obj['exports'], raw_obj['imports'],
-                raw_obj['has_relocations'], raw_obj['has_resources'], raw_obj['has_signature'], raw_obj['has_tls'],
-                raw_obj['symbols']
-            ],
-            dtype=np.float32)
+        return np.asarray([
+            raw_obj['size'], raw_obj['vsize'], raw_obj['has_debug'], raw_obj['exports'], raw_obj['imports'],
+            raw_obj['has_relocations'], raw_obj['has_resources'], raw_obj['has_signature'], raw_obj['has_tls'],
+            raw_obj['symbols']
+        ],
+                          dtype=np.float32)
 
 
 class HeaderFileInfo(FeatureType):
@@ -435,12 +436,53 @@ class StringExtractor(FeatureType):
         ]).astype(np.float32)
 
 
+class DataDirectories(FeatureType):
+    ''' Extracts size and virtual address of all data directories '''
+
+    name = 'datadirectories'
+    dim = 15 * 2
+
+    def __init__(self):
+        super(FeatureType, self).__init__()
+        self._name_order = [
+            "EXPORT_TABLE", "IMPORT_TABLE", "RESOURCE_TABLE", "EXCEPTION_TABLE", "CERTIFICATE_TABLE",
+            "BASE_RELOCATION_TABLE", "DEBUG", "ARCHITECTURE", "GLOBAL_PTR", "TLS_TABLE", "LOAD_CONFIG_TABLE",
+            "BOUND_IMPORT", "IAT", "DELAY_IMPORT_DESCRIPTOR", "CLR_RUNTIME_HEADER"
+        ]
+
+    def raw_features(self, bytez, lief_binary):
+        output = []
+        for data_directory in lief_binary.data_directories:
+            output.append({
+                "name": str(data_directory.type).replace("DATA_DIRECTORY.", ""),
+                "size": data_directory.size,
+                "virtual_address": data_directory.rva
+            })
+        return output
+
+    def process_raw_features(self, raw_obj):
+        features = np.zeros(2 * len(self._name_order), dtype=np.float32)
+        for data_directory in raw_obj:
+            if data_directory["name"] in self._name_order:
+                iorder = self._name_order.index(data_directory["name"])
+                features[2 * iorder] = data_directory["size"]
+                features[2 * iorder + 1] = data_directory["virtual_address"]
+        return features
+
+
 class PEFeatureExtractor(object):
     ''' Extract useful features from a PE file, and return as a vector of fixed size. '''
 
     features = [
-        ByteHistogram(), ByteEntropyHistogram(), StringExtractor(), GeneralFileInfo(), HeaderFileInfo(), SectionInfo(),
-        ImportsInfo(), ExportsInfo()
+        ByteHistogram(),
+        ByteEntropyHistogram(),
+        StringExtractor(),
+        GeneralFileInfo(),
+        HeaderFileInfo(),
+        SectionInfo(),
+        ImportsInfo(),
+        ExportsInfo(),
+        DataDirectories()
     ]
     dim = sum([fe.dim for fe in features])
 
