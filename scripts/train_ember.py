@@ -12,7 +12,6 @@ def main():
     parser = argparse.ArgumentParser(prog=prog, description=descr)
     parser.add_argument("datadir", metavar="DATADIR", type=str, help="Directory with raw features")
     parser.add_argument("--optimize", help="gridsearch to find best parameters", action='store_true')
-    parser.add_arguments("--fold", help="number of folds for CV GridSearch", default=5)
     args = parser.parse_args()
 
     if not os.path.exists(args.datadir) or not os.path.isdir(args.datadir):
