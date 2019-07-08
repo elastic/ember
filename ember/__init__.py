@@ -165,15 +165,15 @@ def optimize_model(data_dir):
 
     # define search grid
     param_grid = {
-        'learning_rate': [0.005, 0.01, 0.05],
-        'n_estimators': [100, 200, 500],
-        'num_leaves': [32, 64, 128, 256],
+        'learning_rate': [0.005, 0.05],
+        'n_estimators': [100, 500],
+        'num_leaves': [32, 128, 512],
         'boosting_type': ['gbdt'],
         'objective': ['binary'],
-        'colsample_bytree': [0.5, 0.8, 1.0],
-        'subsample': [0.5, 0.8, 1.0],
+        'colsample_bytree': [0.8, 1.0],
+        'subsample': [0.8, 1.0],
         'reg_alpha': [1, 1.2],
-        'reg_lambda': [1, 1.2, 1.4],
+        'reg_lambda': [1, 1.2],
     }
 
     model = lgb.LGBMClassifier( 
