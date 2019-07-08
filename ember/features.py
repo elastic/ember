@@ -437,7 +437,7 @@ class StringExtractor(FeatureType):
 
 
 class DataDirectories(FeatureType):
-    ''' Extracts size and virtual address of all data directories '''
+    ''' Extracts size and virtual address of the first 15 data directories '''
 
     name = 'datadirectories'
     dim = 15 * 2
@@ -462,11 +462,10 @@ class DataDirectories(FeatureType):
 
     def process_raw_features(self, raw_obj):
         features = np.zeros(2 * len(self._name_order), dtype=np.float32)
-        for data_directory in raw_obj:
-            if data_directory["name"] in self._name_order:
-                iorder = self._name_order.index(data_directory["name"])
-                features[2 * iorder] = data_directory["size"]
-                features[2 * iorder + 1] = data_directory["virtual_address"]
+        for i in range(len(self._name_order)):
+            if i < len(raw_obj):
+                features[2 * i] = raw_obj[i]["size"]
+                features[2 * i + 1] = raw_obj[i]["virtual_address"]
         return features
 
 
