@@ -68,13 +68,15 @@ def create_vectorized_features(data_dir):
     X_path = os.path.join(data_dir, "X_train.dat")
     y_path = os.path.join(data_dir, "y_train.dat")
     raw_feature_paths = [os.path.join(data_dir, "train_features_{}.jsonl".format(i)) for i in range(6)]
-    vectorize_subset(X_path, y_path, raw_feature_paths, 900000)
+    nrows = sum([1 for fp in raw_feature_paths for line in open(fp)])
+    vectorize_subset(X_path, y_path, raw_feature_paths, nrows)
 
     print("Vectorizing test set")
     X_path = os.path.join(data_dir, "X_test.dat")
     y_path = os.path.join(data_dir, "y_test.dat")
     raw_feature_paths = [os.path.join(data_dir, "test_features.jsonl")]
-    vectorize_subset(X_path, y_path, raw_feature_paths, 200000)
+    nrows = sum([1 for fp in raw_feature_paths for line in open(fp)])
+    vectorize_subset(X_path, y_path, raw_feature_paths, nrows)
 
 
 def read_vectorized_features(data_dir, subset=None):
@@ -111,10 +113,11 @@ def read_vectorized_features(data_dir, subset=None):
 
 def read_metadata_record(raw_features_string):
     """
-    Decode a raw features stringa and return the metadata fields
+    Decode a raw features string and return the metadata fields
     """
-    full_metadata = json.loads(raw_features_string)
-    return {"sha256": full_metadata["sha256"], "appeared": full_metadata["appeared"], "label": full_metadata["label"]}
+    all_data = json.loads(raw_features_string)
+    metadata_keys = {"sha256", "appeared", "label", "avclass"}
+    return {k: all_data[k] for k in all_data.keys() & metadata_keys}
 
 
 def create_metadata(data_dir):
@@ -131,7 +134,9 @@ def create_metadata(data_dir):
     test_records = list(pool.imap(read_metadata_record, raw_feature_iterator(test_feature_paths)))
     test_records = [dict(record, **{"subset": "test"}) for record in test_records]
 
-    metadf = pd.DataFrame(train_records + test_records)[["sha256", "appeared", "subset", "label"]]
+    all_metadata_keys = ["sha256", "appeared", "subset", "label", "avclass"]
+    ordered_metadata_keys = [k for k in all_metadata_keys if k in train_records[0].keys()]
+    metadf = pd.DataFrame(train_records + test_records)[ordered_metadata_keys]
     metadf.to_csv(os.path.join(data_dir, "metadata.csv"))
     return metadf
 
