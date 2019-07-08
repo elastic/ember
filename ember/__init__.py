@@ -186,7 +186,7 @@ def optimize_model(data_dir):
     # so this works for progrssive time series splitting
     progressive_cv = TimeSeriesSplit( n_splits=3 ).split(X_train)
 
-    grid = GridSearchCV(estimator=model, cv=progressive_cv, param_grid=param_grid, scoring=score, n_jobs=1)
+    grid = GridSearchCV(estimator=model, cv=progressive_cv, param_grid=param_grid, scoring=score, n_jobs=1, verbose=3)
 
     grid.fit( X_train, y_train )
 
