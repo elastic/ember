@@ -210,7 +210,9 @@ class ImportsInfo(FeatureType):
             # Clipping assumes there are diminishing returns on the discriminatory power of imported functions
             #  beyond the first 10000 characters, and this will help limit the dataset size
             for entry in lib.entries:
-                if not entry.is_ordinal:
+                if entry.is_ordinal:
+                    imports[lib.name].append("ordinal" + str(entry.ordinal))
+                else:
                     imports[lib.name].append(entry.name[:10000])
 
         return imports
