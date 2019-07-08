@@ -154,7 +154,7 @@ def optimize_model(data_dir):
 
     # read training dataset
     X_train = X_train[train_rows]
-    y_train = y_train[train_rows])
+    y_train = y_train[train_rows]
 
     # score by roc auc
     # we're interested in low FPR rates:
