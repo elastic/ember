@@ -472,18 +472,20 @@ class DataDirectories(FeatureType):
 class PEFeatureExtractor(object):
     ''' Extract useful features from a PE file, and return as a vector of fixed size. '''
 
-    features = [
-        ByteHistogram(),
-        ByteEntropyHistogram(),
-        StringExtractor(),
-        GeneralFileInfo(),
-        HeaderFileInfo(),
-        SectionInfo(),
-        ImportsInfo(),
-        ExportsInfo(),
-        DataDirectories()
-    ]
-    dim = sum([fe.dim for fe in features])
+    def __init__(self, year=2018):
+        self.features = [
+            ByteHistogram(),
+            ByteEntropyHistogram(),
+            StringExtractor(),
+            GeneralFileInfo(),
+            HeaderFileInfo(),
+            SectionInfo(),
+            ImportsInfo(),
+            ExportsInfo()
+        ]
+        if year > 2017:
+            self.features.append(DataDirectories())
+        self.dim = sum([fe.dim for fe in self.features])
 
     def raw_features(self, bytez):
         try:

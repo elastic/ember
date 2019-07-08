@@ -20,11 +20,10 @@ def raw_feature_iterator(file_paths):
                 yield line
 
 
-def vectorize(irow, raw_features_string, X_path, y_path, nrows):
+def vectorize(irow, raw_features_string, X_path, y_path, extractor, nrows):
     """
     Vectorize a single sample of raw features and write to a large numpy file
     """
-    extractor = PEFeatureExtractor()
     raw_features = json.loads(raw_features_string)
     feature_vector = extractor.process_raw_features(raw_features)
 
@@ -42,51 +41,53 @@ def vectorize_unpack(args):
     return vectorize(*args)
 
 
-def vectorize_subset(X_path, y_path, raw_feature_paths, nrows):
+def vectorize_subset(X_path, y_path, raw_feature_paths, extractor, nrows):
     """
     Vectorize a subset of data and write it to disk
     """
     # Create space on disk to write features to
-    extractor = PEFeatureExtractor()
     X = np.memmap(X_path, dtype=np.float32, mode="w+", shape=(nrows, extractor.dim))
     y = np.memmap(y_path, dtype=np.float32, mode="w+", shape=nrows)
     del X, y
 
     # Distribute the vectorization work
     pool = multiprocessing.Pool()
-    argument_iterator = ((irow, raw_features_string, X_path, y_path, nrows)
+    argument_iterator = ((irow, raw_features_string, X_path, y_path, extractor, nrows)
                          for irow, raw_features_string in enumerate(raw_feature_iterator(raw_feature_paths)))
     for _ in tqdm.tqdm(pool.imap_unordered(vectorize_unpack, argument_iterator), total=nrows):
         pass
 
 
-def create_vectorized_features(data_dir):
+def create_vectorized_features(data_dir, year=2018):
     """
     Create feature vectors from raw features and write them to disk
     """
+    extractor = PEFeatureExtractor(year)
+
     print("Vectorizing training set")
     X_path = os.path.join(data_dir, "X_train.dat")
     y_path = os.path.join(data_dir, "y_train.dat")
     raw_feature_paths = [os.path.join(data_dir, "train_features_{}.jsonl".format(i)) for i in range(6)]
     nrows = sum([1 for fp in raw_feature_paths for line in open(fp)])
-    vectorize_subset(X_path, y_path, raw_feature_paths, nrows)
+    vectorize_subset(X_path, y_path, raw_feature_paths, extractor, nrows)
 
     print("Vectorizing test set")
     X_path = os.path.join(data_dir, "X_test.dat")
     y_path = os.path.join(data_dir, "y_test.dat")
     raw_feature_paths = [os.path.join(data_dir, "test_features.jsonl")]
     nrows = sum([1 for fp in raw_feature_paths for line in open(fp)])
-    vectorize_subset(X_path, y_path, raw_feature_paths, nrows)
+    vectorize_subset(X_path, y_path, raw_feature_paths, extractor, nrows)
 
 
-def read_vectorized_features(data_dir, subset=None):
+def read_vectorized_features(data_dir, subset=None, year=2018):
     """
     Read vectorized features into memory mapped numpy arrays
     """
     if subset is not None and subset not in ["train", "test"]:
         return None
 
-    ndim = PEFeatureExtractor.dim
+    extractor = PEFeatureExtractor(year)
+    ndim = extractor.dim
     X_train = None
     y_train = None
     X_test = None
@@ -95,16 +96,16 @@ def read_vectorized_features(data_dir, subset=None):
     if subset is None or subset == "train":
         X_train_path = os.path.join(data_dir, "X_train.dat")
         y_train_path = os.path.join(data_dir, "y_train.dat")
-        X_train = np.memmap(X_train_path, dtype=np.float32, mode="r", shape=(900000, ndim))
-        y_train = np.memmap(y_train_path, dtype=np.float32, mode="r", shape=900000)
+        X_train = np.memmap(X_train_path, dtype=np.float32, mode="r").reshape((-1, ndim))
+        y_train = np.memmap(y_train_path, dtype=np.float32, mode="r")
         if subset == "train":
             return X_train, y_train
 
     if subset is None or subset == "test":
         X_test_path = os.path.join(data_dir, "X_test.dat")
         y_test_path = os.path.join(data_dir, "y_test.dat")
-        X_test = np.memmap(X_test_path, dtype=np.float32, mode="r", shape=(200000, ndim))
-        y_test = np.memmap(y_test_path, dtype=np.float32, mode="r", shape=200000)
+        X_test = np.memmap(X_test_path, dtype=np.float32, mode="r").reshape((-1, ndim))
+        y_test = np.memmap(y_test_path, dtype=np.float32, mode="r")
         if subset == "test":
             return X_test, y_test
 
@@ -148,12 +149,12 @@ def read_metadata(data_dir):
     return pd.read_csv(os.path.join(data_dir, "metadata.csv"), index_col=0)
 
 
-def train_model(data_dir):
+def train_model(data_dir, year=2018):
     """
     Train the LightGBM model from the EMBER dataset from the vectorized features
     """
     # Read data
-    X_train, y_train = read_vectorized_features(data_dir, subset="train")
+    X_train, y_train = read_vectorized_features(data_dir, "train", year)
 
     # Filter unlabeled data
     train_rows = (y_train != -1)
@@ -165,10 +166,10 @@ def train_model(data_dir):
     return lgbm_model
 
 
-def predict_sample(lgbm_model, file_data):
+def predict_sample(lgbm_model, file_data, year=2018):
     """
     Predict a PE file with an LightGBM model
     """
-    extractor = PEFeatureExtractor()
+    extractor = PEFeatureExtractor(year)
     features = np.array(extractor.feature_vector(file_data), dtype=np.float32)
     return lgbm_model.predict([features])[0]
