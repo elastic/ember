@@ -23,11 +23,10 @@ def raw_feature_iterator(file_paths):
                 yield line
 
 
-def vectorize(irow, raw_features_string, X_path, y_path, nrows):
+def vectorize(irow, raw_features_string, X_path, y_path, extractor, nrows):
     """
     Vectorize a single sample of raw features and write to a large numpy file
     """
-    extractor = PEFeatureExtractor()
     raw_features = json.loads(raw_features_string)
     feature_vector = extractor.process_raw_features(raw_features)
 
@@ -45,49 +44,53 @@ def vectorize_unpack(args):
     return vectorize(*args)
 
 
-def vectorize_subset(X_path, y_path, raw_feature_paths, nrows):
+def vectorize_subset(X_path, y_path, raw_feature_paths, extractor, nrows):
     """
     Vectorize a subset of data and write it to disk
     """
     # Create space on disk to write features to
-    extractor = PEFeatureExtractor()
     X = np.memmap(X_path, dtype=np.float32, mode="w+", shape=(nrows, extractor.dim))
     y = np.memmap(y_path, dtype=np.float32, mode="w+", shape=nrows)
     del X, y
 
     # Distribute the vectorization work
     pool = multiprocessing.Pool()
-    argument_iterator = ((irow, raw_features_string, X_path, y_path, nrows)
+    argument_iterator = ((irow, raw_features_string, X_path, y_path, extractor, nrows)
                          for irow, raw_features_string in enumerate(raw_feature_iterator(raw_feature_paths)))
     for _ in tqdm.tqdm(pool.imap_unordered(vectorize_unpack, argument_iterator), total=nrows):
         pass
 
 
-def create_vectorized_features(data_dir):
+def create_vectorized_features(data_dir, year=2018):
     """
     Create feature vectors from raw features and write them to disk
     """
+    extractor = PEFeatureExtractor(year)
+
     print("Vectorizing training set")
     X_path = os.path.join(data_dir, "X_train.dat")
     y_path = os.path.join(data_dir, "y_train.dat")
     raw_feature_paths = [os.path.join(data_dir, "train_features_{}.jsonl".format(i)) for i in range(6)]
-    vectorize_subset(X_path, y_path, raw_feature_paths, 900000)
+    nrows = sum([1 for fp in raw_feature_paths for line in open(fp)])
+    vectorize_subset(X_path, y_path, raw_feature_paths, extractor, nrows)
 
     print("Vectorizing test set")
     X_path = os.path.join(data_dir, "X_test.dat")
     y_path = os.path.join(data_dir, "y_test.dat")
     raw_feature_paths = [os.path.join(data_dir, "test_features.jsonl")]
-    vectorize_subset(X_path, y_path, raw_feature_paths, 200000)
+    nrows = sum([1 for fp in raw_feature_paths for line in open(fp)])
+    vectorize_subset(X_path, y_path, raw_feature_paths, extractor, nrows)
 
 
-def read_vectorized_features(data_dir, subset=None):
+def read_vectorized_features(data_dir, subset=None, year=2018):
     """
     Read vectorized features into memory mapped numpy arrays
     """
     if subset is not None and subset not in ["train", "test"]:
         return None
 
-    ndim = PEFeatureExtractor.dim
+    extractor = PEFeatureExtractor(year)
+    ndim = extractor.dim
     X_train = None
     y_train = None
     X_test = None
@@ -116,10 +119,11 @@ def read_vectorized_features(data_dir, subset=None):
 
 def read_metadata_record(raw_features_string):
     """
-    Decode a raw features stringa and return the metadata fields
+    Decode a raw features string and return the metadata fields
     """
-    full_metadata = json.loads(raw_features_string)
-    return {"sha256": full_metadata["sha256"], "appeared": full_metadata["appeared"], "label": full_metadata["label"]}
+    all_data = json.loads(raw_features_string)
+    metadata_keys = {"sha256", "appeared", "label", "avclass"}
+    return {k: all_data[k] for k in all_data.keys() & metadata_keys}
 
 
 def create_metadata(data_dir):
@@ -136,7 +140,9 @@ def create_metadata(data_dir):
     test_records = list(pool.imap(read_metadata_record, raw_feature_iterator(test_feature_paths)))
     test_records = [dict(record, **{"subset": "test"}) for record in test_records]
 
-    metadf = pd.DataFrame(train_records + test_records)[["sha256", "appeared", "subset", "label"]]
+    all_metadata_keys = ["sha256", "appeared", "subset", "label", "avclass"]
+    ordered_metadata_keys = [k for k in all_metadata_keys if k in train_records[0].keys()]
+    metadf = pd.DataFrame(train_records + test_records)[ordered_metadata_keys]
     metadf.to_csv(os.path.join(data_dir, "metadata.csv"))
     return metadf
 
@@ -192,7 +198,7 @@ def optimize_model(data_dir):
 
     return grid.best_params_
 
-def train_model(data_dir, params={}):
+def train_model(data_dir, params={}, year=2018):
     """
     Train the LightGBM model from the EMBER dataset from the vectorized features
     """
@@ -200,7 +206,7 @@ def train_model(data_dir, params={}):
     params.update({"application": "binary"})
 
     # Read data
-    X_train, y_train = read_vectorized_features(data_dir, subset="train")
+    X_train, y_train = read_vectorized_features(data_dir, "train", year)
 
     # Filter unlabeled data
     train_rows = (y_train != -1)
@@ -212,10 +218,10 @@ def train_model(data_dir, params={}):
     return lgbm_model
 
 
-def predict_sample(lgbm_model, file_data):
+def predict_sample(lgbm_model, file_data, year=2018):
     """
     Predict a PE file with an LightGBM model
     """
-    extractor = PEFeatureExtractor()
+    extractor = PEFeatureExtractor(year)
     features = np.array(extractor.feature_vector(file_data), dtype=np.float32)
     return lgbm_model.predict([features])[0]
