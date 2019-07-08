@@ -3,6 +3,7 @@
 import os
 import ember
 import argparse
+import json
 
 
 def main():
@@ -10,6 +11,8 @@ def main():
     descr = "Train an ember model from a directory with raw feature files"
     parser = argparse.ArgumentParser(prog=prog, description=descr)
     parser.add_argument("datadir", metavar="DATADIR", type=str, help="Directory with raw features")
+    parser.add_argument("--optimize", help="gridsearch to find best parameters", action='store_true')
+    parser.add_arguments("--fold", help="number of folds for CV GridSearch", default=5)
     args = parser.parse_args()
 
     if not os.path.exists(args.datadir) or not os.path.isdir(args.datadir):
@@ -21,10 +24,15 @@ def main():
         print("Creating vectorized features")
         ember.create_vectorized_features(args.datadir)
 
-    print("Training LightGBM model")
-    lgbm_model = ember.train_model(args.datadir)
-    lgbm_model.save_model(os.path.join(args.datadir, "model.txt"))
+    params = {}
+    if args.optimize:
+        params = ember.optimize_model( args.datadir )
+        print("Best parameters: ")
+        print( json.dumps( params, indent=2 ) )
 
+    print("Training LightGBM model")
+    lgbm_model = ember.train_model(args.datadir, params)
+    lgbm_model.save_model(os.path.join(args.datadir, "model.txt"))
 
 if __name__ == "__main__":
     main()
