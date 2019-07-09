@@ -9,6 +9,9 @@ import lightgbm as lgb
 import multiprocessing
 from .features import PEFeatureExtractor
 
+from sklearn.model_selection import TimeSeriesSplit
+from sklearn.metrics import (roc_auc_score, make_scorer)
+from sklearn.model_selection import GridSearchCV
 
 def raw_feature_iterator(file_paths):
     """
@@ -96,16 +99,18 @@ def read_vectorized_features(data_dir, subset=None, year=2018):
     if subset is None or subset == "train":
         X_train_path = os.path.join(data_dir, "X_train.dat")
         y_train_path = os.path.join(data_dir, "y_train.dat")
-        X_train = np.memmap(X_train_path, dtype=np.float32, mode="r").reshape((-1, ndim))
         y_train = np.memmap(y_train_path, dtype=np.float32, mode="r")
+        N = y_train.shape[0]
+        X_train = np.memmap(X_train_path, dtype=np.float32, mode="r", shape=(N, ndim))
         if subset == "train":
             return X_train, y_train
 
     if subset is None or subset == "test":
         X_test_path = os.path.join(data_dir, "X_test.dat")
         y_test_path = os.path.join(data_dir, "y_test.dat")
-        X_test = np.memmap(X_test_path, dtype=np.float32, mode="r").reshape((-1, ndim))
         y_test = np.memmap(y_test_path, dtype=np.float32, mode="r")
+        N = y_test.shape[0]
+        X_test = np.memmap(X_test_path, dtype=np.float32, mode="r", shape=(N, ndim))
         if subset == "test":
             return X_test, y_test
 
@@ -148,11 +153,58 @@ def read_metadata(data_dir):
     """
     return pd.read_csv(os.path.join(data_dir, "metadata.csv"), index_col=0)
 
+def optimize_model(data_dir):
+    # Read data
+    X_train, y_train = read_vectorized_features(data_dir, subset="train")
 
-def train_model(data_dir, year=2018):
+    # Filter unlabeled data
+    train_rows = (y_train != -1)
+
+    # read training dataset
+    X_train = X_train[train_rows]
+    y_train = y_train[train_rows]
+
+    # score by roc auc
+    # we're interested in low FPR rates:
+    # we'll consider only the AUC for FPRs in [0,5e-3]
+    score = make_scorer( roc_auc_score, max_fpr = 5e-3 )
+
+    # define search grid
+    param_grid = {
+        'learning_rate': [0.005, 0.05],
+        'n_estimators': [100, 500],
+        'num_leaves': [32, 128, 512],
+        'boosting_type': ['gbdt'],
+        'objective': ['binary'],
+        'colsample_bytree': [0.8, 1.0],
+        'subsample': [0.8, 1.0],
+        'reg_alpha': [1, 1.2],
+        'reg_lambda': [1, 1.2],
+    }
+
+    model = lgb.LGBMClassifier( 
+        boosting_type='gbdt',
+        n_jobs = -1,
+        silent = True
+    )
+
+    # each row in X_train appears in chronological order of "appeared"
+    # so this works for progrssive time series splitting
+    progressive_cv = TimeSeriesSplit( n_splits=3 ).split(X_train)
+
+    grid = GridSearchCV(estimator=model, cv=progressive_cv, param_grid=param_grid, scoring=score, n_jobs=1, verbose=3)
+
+    grid.fit( X_train, y_train )
+
+    return grid.best_params_
+
+def train_model(data_dir, params={}, year=2018):
     """
     Train the LightGBM model from the EMBER dataset from the vectorized features
     """
+    # update params
+    params.update({"application": "binary"})
+
     # Read data
     X_train, y_train = read_vectorized_features(data_dir, "train", year)
 
@@ -161,7 +213,7 @@ def train_model(data_dir, year=2018):
 
     # Train
     lgbm_dataset = lgb.Dataset(X_train[train_rows], y_train[train_rows])
-    lgbm_model = lgb.train({"application": "binary"}, lgbm_dataset)
+    lgbm_model = lgb.train(params, lgbm_dataset)
 
     return lgbm_model
 
