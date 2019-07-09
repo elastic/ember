@@ -8,10 +8,10 @@ import pandas as pd
 import lightgbm as lgb
 import multiprocessing
 from .features import PEFeatureExtractor
-
+from sklearn.model_selection import GridSearchCV
 from sklearn.model_selection import TimeSeriesSplit
 from sklearn.metrics import (roc_auc_score, make_scorer)
-from sklearn.model_selection import GridSearchCV
+
 
 def raw_feature_iterator(file_paths):
     """
@@ -153,7 +153,11 @@ def read_metadata(data_dir):
     """
     return pd.read_csv(os.path.join(data_dir, "metadata.csv"), index_col=0)
 
+
 def optimize_model(data_dir):
+    """
+    Run a grid search to find the best LightGBM parameters
+    """
     # Read data
     X_train, y_train = read_vectorized_features(data_dir, subset="train")
 
@@ -165,9 +169,8 @@ def optimize_model(data_dir):
     y_train = y_train[train_rows]
 
     # score by roc auc
-    # we're interested in low FPR rates:
-    # we'll consider only the AUC for FPRs in [0,5e-3]
-    score = make_scorer( roc_auc_score, max_fpr = 5e-3 )
+    # we're interested in low FPR rates, so we'll consider only the AUC for FPRs in [0,5e-3]
+    score = make_scorer(roc_auc_score, max_fpr=5e-3)
 
     # define search grid
     param_grid = {
@@ -181,22 +184,17 @@ def optimize_model(data_dir):
         'reg_alpha': [1, 1.2],
         'reg_lambda': [1, 1.2],
     }
-
-    model = lgb.LGBMClassifier( 
-        boosting_type='gbdt',
-        n_jobs = -1,
-        silent = True
-    )
+    model = lgb.LGBMClassifier(boosting_type="gbdt", n_jobs=-1, silent=True)
 
     # each row in X_train appears in chronological order of "appeared"
     # so this works for progrssive time series splitting
-    progressive_cv = TimeSeriesSplit( n_splits=3 ).split(X_train)
+    progressive_cv = TimeSeriesSplit(n_splits=3).split(X_train)
 
     grid = GridSearchCV(estimator=model, cv=progressive_cv, param_grid=param_grid, scoring=score, n_jobs=1, verbose=3)
-
-    grid.fit( X_train, y_train )
+    grid.fit(X_train, y_train)
 
     return grid.best_params_
+
 
 def train_model(data_dir, params={}, year=2018):
     """
