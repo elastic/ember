@@ -171,19 +171,18 @@ def optimize_model(data_dir):
 
     # define search grid
     param_grid = {
-        'learning_rate': [0.005, 0.05],
-        'n_estimators': [100, 500],
-        'num_leaves': [32, 128, 512],
+        'learning_rate':  [0.05, 0.1],
+        'num_iterations': [1000],
+        'num_leaves': [1024,2048],
+        'min_data_in_leaf': [50,100], 
+        'max_depth': [11,15],
         'boosting_type': ['gbdt'],
         'objective': ['binary'],
-        'colsample_bytree': [0.8, 1.0],
-        'subsample': [0.8, 1.0],
-        'reg_alpha': [1, 1.2],
-        'reg_lambda': [1, 1.2],
+        'colsample_bytree': [0.5, 0.75, 1.0], # aka feature_fraction
     }
 
     model = lgb.LGBMClassifier( 
-        boosting_type='gbdt',
+        boosting='gbdt',
         n_jobs = -1,
         silent = True
     )
@@ -192,7 +191,7 @@ def optimize_model(data_dir):
     # so this works for progrssive time series splitting
     progressive_cv = TimeSeriesSplit( n_splits=3 ).split(X_train)
 
-    grid = GridSearchCV(estimator=model, cv=progressive_cv, param_grid=param_grid, scoring=score, n_jobs=1, verbose=3)
+    grid = GridSearchCV(estimator=model, cv=progressive_cv, param_grid=param_grid, scoring=score, n_jobs=1, verbose=1)
 
     grid.fit( X_train, y_train )
 
