@@ -24,7 +24,16 @@ def main():
         print("Creating vectorized features")
         ember.create_vectorized_features(args.datadir, args.year)
 
-    params = {}
+    params = {
+        "boosting": "gbdt",
+        "objective": "binary",
+        "num_iterations": 1000,
+        "learning_rate": 0.05,
+        "num_leaves": 2048,
+        "max_depth": 15,
+        "min_data_in_leaf": 50,
+        "feature_fraction": 0.5
+    }
     if args.optimize:
         params = ember.optimize_model(args.datadir)
         print("Best parameters: ")
