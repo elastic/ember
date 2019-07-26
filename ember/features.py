@@ -30,11 +30,11 @@ class FeatureType(object):
 
     def raw_features(self, bytez, lief_binary):
         ''' Generate a JSON-able representation of the file '''
-        raise (NotImplemented)
+        raise (NotImplementedError)
 
     def process_raw_features(self, raw_obj):
         ''' Generate a feature vector from the raw features '''
-        raise (NotImplemented)
+        raise (NotImplementedError)
 
     def feature_vector(self, bytez, lief_binary):
         ''' Directly calculate the feature vector from the sample itself. This should only be implemented differently
@@ -454,6 +454,9 @@ class DataDirectories(FeatureType):
 
     def raw_features(self, bytez, lief_binary):
         output = []
+        if lief_binary is None:
+            return output
+
         for data_directory in lief_binary.data_directories:
             output.append({
                 "name": str(data_directory.type).replace("DATA_DIRECTORY.", ""),
@@ -474,7 +477,7 @@ class DataDirectories(FeatureType):
 class PEFeatureExtractor(object):
     ''' Extract useful features from a PE file, and return as a vector of fixed size. '''
 
-    def __init__(self, year=2018):
+    def __init__(self, feature_version=2):
         self.features = [
             ByteHistogram(),
             ByteEntropyHistogram(),
@@ -485,14 +488,27 @@ class PEFeatureExtractor(object):
             ImportsInfo(),
             ExportsInfo()
         ]
-        if year > 2017:
+        if feature_version == 1:
+            if not lief.__version__.startswith("0.8.3"):
+                print(f"WARNING: EMBER feature version 1 requires lief version 0.8.3-18d5b75")
+                print(f"WARNING:   lief version {lief.__version__} found instead. There may be slight inconsistencies")
+                print(f"WARNING:   in the feature calculations.")
+        elif feature_version == 2:
             self.features.append(DataDirectories())
+            if not lief.__version__.startswith("0.9.0"):
+                print(f"WARNING: EMBER feature version 1 requires lief version 0.9.0-")
+                print(f"WARNING:   lief version {lief.__version__} found instead. There may be slight inconsistencies")
+                print(f"WARNING:   in the feature calculations.")
+        else:
+            raise Exception(f"EMBER feature version must be 1 or 2. Not {feature_version}")
         self.dim = sum([fe.dim for fe in self.features])
 
     def raw_features(self, bytez):
+        lief_errors = (lief.bad_format, lief.bad_file, lief.pe_error, lief.parser_error, lief.read_out_of_bound,
+                       RuntimeError)
         try:
             lief_binary = lief.PE.parse(list(bytez))
-        except (lief.bad_format, lief.bad_file, lief.pe_error, lief.parser_error, RuntimeError) as e:
+        except lief_errors as e:
             print("lief error: ", str(e))
             lief_binary = None
         except Exception:  # everything else (KeyboardInterrupt, SystemExit, ValueError):

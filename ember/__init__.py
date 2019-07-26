@@ -61,11 +61,11 @@ def vectorize_subset(X_path, y_path, raw_feature_paths, extractor, nrows):
         pass
 
 
-def create_vectorized_features(data_dir, year=2018):
+def create_vectorized_features(data_dir, feature_version=2):
     """
     Create feature vectors from raw features and write them to disk
     """
-    extractor = PEFeatureExtractor(year)
+    extractor = PEFeatureExtractor(feature_version)
 
     print("Vectorizing training set")
     X_path = os.path.join(data_dir, "X_train.dat")
@@ -82,14 +82,14 @@ def create_vectorized_features(data_dir, year=2018):
     vectorize_subset(X_path, y_path, raw_feature_paths, extractor, nrows)
 
 
-def read_vectorized_features(data_dir, subset=None, year=2018):
+def read_vectorized_features(data_dir, subset=None, feature_version=2):
     """
     Read vectorized features into memory mapped numpy arrays
     """
     if subset is not None and subset not in ["train", "test"]:
         return None
 
-    extractor = PEFeatureExtractor(year)
+    extractor = PEFeatureExtractor(feature_version)
     ndim = extractor.dim
     X_train = None
     y_train = None
@@ -174,15 +174,13 @@ def optimize_model(data_dir):
 
     # define search grid
     param_grid = {
-        'learning_rate': [0.005, 0.05],
-        'n_estimators': [100, 500],
-        'num_leaves': [32, 128, 512],
         'boosting_type': ['gbdt'],
         'objective': ['binary'],
-        'colsample_bytree': [0.8, 1.0],
-        'subsample': [0.8, 1.0],
-        'reg_alpha': [1, 1.2],
-        'reg_lambda': [1, 1.2],
+        'num_iterations': [500, 1000],
+        'learning_rate': [0.005, 0.05],
+        'num_leaves': [512, 1024, 2048],
+        'feature_fraction': [0.5, 0.8, 1.0],
+        'bagging_fraction': [0.5, 0.8, 1.0]
     }
     model = lgb.LGBMClassifier(boosting_type="gbdt", n_jobs=-1, silent=True)
 
@@ -196,7 +194,7 @@ def optimize_model(data_dir):
     return grid.best_params_
 
 
-def train_model(data_dir, params={}, year=2018):
+def train_model(data_dir, params={}, feature_version=2):
     """
     Train the LightGBM model from the EMBER dataset from the vectorized features
     """
@@ -204,7 +202,7 @@ def train_model(data_dir, params={}, year=2018):
     params.update({"application": "binary"})
 
     # Read data
-    X_train, y_train = read_vectorized_features(data_dir, "train", year)
+    X_train, y_train = read_vectorized_features(data_dir, "train", feature_version)
 
     # Filter unlabeled data
     train_rows = (y_train != -1)
@@ -216,10 +214,10 @@ def train_model(data_dir, params={}, year=2018):
     return lgbm_model
 
 
-def predict_sample(lgbm_model, file_data, year=2018):
+def predict_sample(lgbm_model, file_data, feature_version=2):
     """
     Predict a PE file with an LightGBM model
     """
-    extractor = PEFeatureExtractor(year)
+    extractor = PEFeatureExtractor(feature_version)
     features = np.array(extractor.feature_vector(file_data), dtype=np.float32)
     return lgbm_model.predict([features])[0]
