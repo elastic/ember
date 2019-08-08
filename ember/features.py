@@ -30,11 +30,11 @@ class FeatureType(object):
 
     def raw_features(self, bytez, lief_binary):
         ''' Generate a JSON-able representation of the file '''
-        raise (NotImplemented)
+        raise (NotImplementedError)
 
     def process_raw_features(self, raw_obj):
         ''' Generate a feature vector from the raw features '''
-        raise (NotImplemented)
+        raise (NotImplementedError)
 
     def feature_vector(self, bytez, lief_binary):
         ''' Directly calculate the feature vector from the sample itself. This should only be implemented differently
@@ -209,7 +209,11 @@ class ImportsInfo(FeatureType):
 
             # Clipping assumes there are diminishing returns on the discriminatory power of imported functions
             #  beyond the first 10000 characters, and this will help limit the dataset size
-            imports[lib.name].extend([entry.name[:10000] for entry in lib.entries])
+            for entry in lib.entries:
+                if entry.is_ordinal:
+                    imports[lib.name].append("ordinal" + str(entry.ordinal))
+                else:
+                    imports[lib.name].append(entry.name[:10000])
 
         return imports
 
@@ -290,13 +294,12 @@ class GeneralFileInfo(FeatureType):
         }
 
     def process_raw_features(self, raw_obj):
-        return np.asarray(
-            [
-                raw_obj['size'], raw_obj['vsize'], raw_obj['has_debug'], raw_obj['exports'], raw_obj['imports'],
-                raw_obj['has_relocations'], raw_obj['has_resources'], raw_obj['has_signature'], raw_obj['has_tls'],
-                raw_obj['symbols']
-            ],
-            dtype=np.float32)
+        return np.asarray([
+            raw_obj['size'], raw_obj['vsize'], raw_obj['has_debug'], raw_obj['exports'], raw_obj['imports'],
+            raw_obj['has_relocations'], raw_obj['has_resources'], raw_obj['has_signature'], raw_obj['has_tls'],
+            raw_obj['symbols']
+        ],
+                          dtype=np.float32)
 
 
 class HeaderFileInfo(FeatureType):
@@ -435,19 +438,77 @@ class StringExtractor(FeatureType):
         ]).astype(np.float32)
 
 
+class DataDirectories(FeatureType):
+    ''' Extracts size and virtual address of the first 15 data directories '''
+
+    name = 'datadirectories'
+    dim = 15 * 2
+
+    def __init__(self):
+        super(FeatureType, self).__init__()
+        self._name_order = [
+            "EXPORT_TABLE", "IMPORT_TABLE", "RESOURCE_TABLE", "EXCEPTION_TABLE", "CERTIFICATE_TABLE",
+            "BASE_RELOCATION_TABLE", "DEBUG", "ARCHITECTURE", "GLOBAL_PTR", "TLS_TABLE", "LOAD_CONFIG_TABLE",
+            "BOUND_IMPORT", "IAT", "DELAY_IMPORT_DESCRIPTOR", "CLR_RUNTIME_HEADER"
+        ]
+
+    def raw_features(self, bytez, lief_binary):
+        output = []
+        if lief_binary is None:
+            return output
+
+        for data_directory in lief_binary.data_directories:
+            output.append({
+                "name": str(data_directory.type).replace("DATA_DIRECTORY.", ""),
+                "size": data_directory.size,
+                "virtual_address": data_directory.rva
+            })
+        return output
+
+    def process_raw_features(self, raw_obj):
+        features = np.zeros(2 * len(self._name_order), dtype=np.float32)
+        for i in range(len(self._name_order)):
+            if i < len(raw_obj):
+                features[2 * i] = raw_obj[i]["size"]
+                features[2 * i + 1] = raw_obj[i]["virtual_address"]
+        return features
+
+
 class PEFeatureExtractor(object):
     ''' Extract useful features from a PE file, and return as a vector of fixed size. '''
 
-    features = [
-        ByteHistogram(), ByteEntropyHistogram(), StringExtractor(), GeneralFileInfo(), HeaderFileInfo(), SectionInfo(),
-        ImportsInfo(), ExportsInfo()
-    ]
-    dim = sum([fe.dim for fe in features])
+    def __init__(self, feature_version=2):
+        self.features = [
+            ByteHistogram(),
+            ByteEntropyHistogram(),
+            StringExtractor(),
+            GeneralFileInfo(),
+            HeaderFileInfo(),
+            SectionInfo(),
+            ImportsInfo(),
+            ExportsInfo()
+        ]
+        if feature_version == 1:
+            if not lief.__version__.startswith("0.8.3"):
+                print(f"WARNING: EMBER feature version 1 requires lief version 0.8.3-18d5b75")
+                print(f"WARNING:   lief version {lief.__version__} found instead. There may be slight inconsistencies")
+                print(f"WARNING:   in the feature calculations.")
+        elif feature_version == 2:
+            self.features.append(DataDirectories())
+            if not lief.__version__.startswith("0.9.0"):
+                print(f"WARNING: EMBER feature version 2 requires lief version 0.9.0-")
+                print(f"WARNING:   lief version {lief.__version__} found instead. There may be slight inconsistencies")
+                print(f"WARNING:   in the feature calculations.")
+        else:
+            raise Exception(f"EMBER feature version must be 1 or 2. Not {feature_version}")
+        self.dim = sum([fe.dim for fe in self.features])
 
     def raw_features(self, bytez):
+        lief_errors = (lief.bad_format, lief.bad_file, lief.pe_error, lief.parser_error, lief.read_out_of_bound,
+                       RuntimeError)
         try:
             lief_binary = lief.PE.parse(list(bytez))
-        except (lief.bad_format, lief.bad_file, lief.pe_error, lief.parser_error, RuntimeError) as e:
+        except lief_errors as e:
             print("lief error: ", str(e))
             lief_binary = None
         except Exception:  # everything else (KeyboardInterrupt, SystemExit, ValueError):

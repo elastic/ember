@@ -10,6 +10,7 @@ def main():
     prog = "classify_binaries"
     descr = "Use a trained ember model to make predictions on PE files"
     parser = argparse.ArgumentParser(prog=prog, description=descr)
+    parser.add_argument("-v", "--featureversion", type=int, default=2, help="EMBER feature version")
     parser.add_argument("-m", "--modelpath", type=str, default=None, required=True, help="Ember model")
     parser.add_argument("binaries", metavar="BINARIES", type=str, nargs="+", help="PE files to classify")
     args = parser.parse_args()
@@ -23,7 +24,7 @@ def main():
             print("{} does not exist".format(binary_path))
 
         file_data = open(binary_path, "rb").read()
-        score = ember.predict_sample(lgbm_model, file_data)
+        score = ember.predict_sample(lgbm_model, file_data, args.featureversion)
 
         if len(args.binaries) == 1:
             print(score)
