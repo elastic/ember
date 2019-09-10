@@ -1,0 +1,3 @@
+Source code in this repository is covered by the GNU Affero General Public
+License version 3 (AGPL-v3). The data files themselves that are referenced in
+the README.md and available for download are covered by the MIT License.
