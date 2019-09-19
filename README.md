@@ -37,6 +37,7 @@ python setup.py install
 ```
 
 ```
+conda config --add channels conda-forge
 conda install --file requirements_conda.txt
 python setup.py install
 ```
