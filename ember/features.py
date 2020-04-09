@@ -490,13 +490,13 @@ class PEFeatureExtractor(object):
         ]
         if feature_version == 1:
             if not lief.__version__.startswith("0.8.3"):
-                print(f"WARNING: EMBER feature version 1 requires lief version 0.8.3-18d5b75")
+                print(f"WARNING: EMBER feature version 1 were computed using lief version 0.8.3-18d5b75")
                 print(f"WARNING:   lief version {lief.__version__} found instead. There may be slight inconsistencies")
                 print(f"WARNING:   in the feature calculations.")
         elif feature_version == 2:
             self.features.append(DataDirectories())
             if not lief.__version__.startswith("0.9.0"):
-                print(f"WARNING: EMBER feature version 2 requires lief version 0.9.0-")
+                print(f"WARNING: EMBER feature version 2 were computed using lief version 0.9.0-")
                 print(f"WARNING:   lief version {lief.__version__} found instead. There may be slight inconsistencies")
                 print(f"WARNING:   in the feature calculations.")
         else:

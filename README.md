@@ -10,7 +10,7 @@ This paper describes many more details about the dataset: [https://arxiv.org/abs
 
 The [LIEF](https://lief.quarkslab.com/) project is used to extract features from PE files included in the EMBER dataset. Raw features are extracted to JSON format and included in the publicly available dataset. Vectorized features can be produced from these raw features and saved in binary format from which they can be converted to CSV, dataframe, or any other format. This repository makes it easy to generate raw features and/or vectorized features from any PE file. Researchers can implement their own features, or even vectorize the existing features differently from the existing implementations.
 
-The feature calculation is versioned. Feature version 1 is calculated with the LIEF library version 0.8.3. Feature version 2 includes the additional data directory feature, updated ordinal import processing, and is calculated with LIEF library version 0.9.0.
+The feature calculation is versioned. Feature version 1 is calculated with the LIEF library version 0.8.3. Feature version 2 includes the additional data directory feature, updated ordinal import processing, and is calculated with LIEF library version 0.9.0.  We have verified under Windows and Linux that LIEF provides consistent feature representation for version 2 features using LIEF version 0.10.1.
 
 ## Years
 
@@ -28,8 +28,18 @@ Download the data here:
 
 
 ## Installation
+### Instrall directly from git
+Use `pip` to install the `ember` and required files
 
-Ember requires Python 3.6 (LIEF is not yet compatible with Python 3.7). Use `pip` or `conda` to install the required packages before installing `ember` itself:
+```
+pip install git+https://github.com/endgameinc/ember.git
+```
+
+This provides access to EMBER feature extaction for example.  However, to use the scripts to train the model, one would instead clone the repository.
+
+
+### Install after cloning the EMBER repository
+Use `pip` or `conda` to install the required packages before installing `ember` itself:
 
 ```
 pip install -r requirements.txt
