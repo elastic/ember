@@ -35,7 +35,7 @@ Use `pip` to install the `ember` and required files
 pip install git+https://github.com/endgameinc/ember.git
 ```
 
-This provides access to EMBER feature extactionm for example.  However, to use the scripts to train the model, one would instead clone the repository.
+This provides access to EMBER feature extaction for example.  However, to use the scripts to train the model, one would instead clone the repository.
 
 
 ### Install after cloning the EMBER repository
