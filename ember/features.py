@@ -18,6 +18,9 @@ import hashlib
 import numpy as np
 from sklearn.feature_extraction import FeatureHasher
 
+LIEF_MAJOR, LIEF_MINOR, _ = lief.__version__.split('.')
+LIEF_EXPORT_OBJECT = int(LIEF_MAJOR) > 0 or ( int(LIEF_MAJOR)==0 and int(LIEF_MINOR) >= 10 )
+
 
 class FeatureType(object):
     ''' Base class from which each feature type may inherit '''
@@ -247,7 +250,13 @@ class ExportsInfo(FeatureType):
 
         # Clipping assumes there are diminishing returns on the discriminatory power of exports beyond
         #  the first 10000 characters, and this will help limit the dataset size
-        clipped_exports = [export[:10000] for export in lief_binary.exported_functions]
+        if LIEF_EXPORT_OBJECT:
+            # export is an object with .name attribute (0.10.0 and later)
+            clipped_exports = [export.name[:10000] for export in lief_binary.exported_functions]
+        else:
+            # export is a string (LIEF 0.9.0 and earlier)
+            clipped_exports = [export[:10000] for export in lief_binary.exported_functions]
+        
 
         return clipped_exports
 
