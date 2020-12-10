@@ -134,14 +134,23 @@ def create_metadata(data_dir):
 
     train_feature_paths = [os.path.join(data_dir, "train_features_{}.jsonl".format(i)) for i in range(6)]
     train_records = list(pool.imap(read_metadata_record, raw_feature_iterator(train_feature_paths)))
+
+    all_metadata_keys = ["sha256", "appeared", "subset", "label", "avclass"]
+    ordered_metadata_keys = [k for k in all_metadata_keys if k in train_records[0].keys()]
+
+    train_metadf = pd.DataFrame(train_records)[ordered_metadata_keys]
+    train_metadf.to_csv(os.path.join(data_dir, "train_metadata.csv"))
+
     train_records = [dict(record, **{"subset": "train"}) for record in train_records]
 
     test_feature_paths = [os.path.join(data_dir, "test_features.jsonl")]
     test_records = list(pool.imap(read_metadata_record, raw_feature_iterator(test_feature_paths)))
+
+    test_metadf = pd.DataFrame(test_records)[ordered_metadata_keys]
+    test_metadf.to_csv(os.path.join(data_dir, "test_metadata.csv"))
+
     test_records = [dict(record, **{"subset": "test"}) for record in test_records]
 
-    all_metadata_keys = ["sha256", "appeared", "subset", "label", "avclass"]
-    ordered_metadata_keys = [k for k in all_metadata_keys if k in train_records[0].keys()]
     metadf = pd.DataFrame(train_records + test_records)[ordered_metadata_keys]
     metadf.to_csv(os.path.join(data_dir, "metadata.csv"))
     return metadf
