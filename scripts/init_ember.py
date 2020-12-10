@@ -11,8 +11,8 @@ def main():
     descr = "Train an ember model from a directory with raw feature files"
     parser = argparse.ArgumentParser(prog=prog, description=descr)
     parser.add_argument("-v", "--featureversion", type=int, default=2, help="EMBER feature version")
-    parser.add_argument("-m", "--metadata", action="store_true", help="EMBER feature version")
-    parser.add_argument("-t", "--train", action="store_true", help="EMBER feature version")
+    parser.add_argument("-m", "--metadata", action="store_true", help="Create metadata CSVs")
+    parser.add_argument("-t", "--train", action="store_true", help="Train an EMBER model")
     parser.add_argument("datadir", metavar="DATADIR", type=str, help="Directory with raw features")
     parser.add_argument("--optimize", help="gridsearch to find best parameters", action="store_true")
     args = parser.parse_args()
@@ -25,6 +25,7 @@ def main():
     if not (os.path.exists(X_train_path) and os.path.exists(y_train_path)):
         print("Creating vectorized features")
         ember.create_vectorized_features(args.datadir, args.featureversion)
+        
     if args.metadata:
         ember.create_metadata(args.datadir)
 
