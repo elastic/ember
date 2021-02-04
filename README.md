@@ -1,6 +1,6 @@
 <img src="resources/logo.png" align="right" width="250px" height="250px">
 
-# Endgame Malware BEnchmark for Research
+# Elastic Malware Benchmark for Empowering Researchers
 
 The EMBER dataset is a collection of features from PE files that serve as a benchmark dataset for researchers. The EMBER2017 dataset contained features from 1.1 million PE files scanned in or before 2017 and the EMBER2018 dataset contains features from 1 million PE files scanned in or before 2018. This repository makes it easy to reproducibly train the benchmark models, extend the provided feature set, or classify new PE files with the benchmark models.
 
@@ -32,7 +32,7 @@ Download the data here:
 Use `pip` to install the `ember` and required files
 
 ```
-pip install git+https://github.com/endgameinc/ember.git
+pip install git+https://github.com/elastic/ember.git
 ```
 
 This provides access to EMBER feature extaction for example.  However, to use the scripts to train the model, one would instead clone the repository.
