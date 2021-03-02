@@ -20,6 +20,7 @@ from sklearn.feature_extraction import FeatureHasher
 
 LIEF_MAJOR, LIEF_MINOR, _ = lief.__version__.split('.')
 LIEF_EXPORT_OBJECT = int(LIEF_MAJOR) > 0 or ( int(LIEF_MAJOR)==0 and int(LIEF_MINOR) >= 10 )
+LIEF_HAS_SIGNATURE = int(LIEF_MAJOR) > 0 or (int(LIEF_MAJOR) == 0 and int(LIEF_MINOR) >= 11)
 
 
 class FeatureType(object):
@@ -297,7 +298,7 @@ class GeneralFileInfo(FeatureType):
             'imports': len(lief_binary.imported_functions),
             'has_relocations': int(lief_binary.has_relocations),
             'has_resources': int(lief_binary.has_resources),
-            'has_signature': int(lief_binary.has_signature),
+            'has_signature': int(lief_binary.has_signatures) if LIEF_HAS_SIGNATURE else int(lief_binary.has_signature),
             'has_tls': int(lief_binary.has_tls),
             'symbols': len(lief_binary.symbols),
         }
