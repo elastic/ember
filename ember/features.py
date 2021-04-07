@@ -487,7 +487,7 @@ class DataDirectories(FeatureType):
 class PEFeatureExtractor(object):
     ''' Extract useful features from a PE file, and return as a vector of fixed size. '''
 
-    def __init__(self, feature_version=2):
+    def __init__(self, feature_version=2, print_feature_warning=True):
         self.features = [
             ByteHistogram(),
             ByteEntropyHistogram(),
@@ -500,15 +500,17 @@ class PEFeatureExtractor(object):
         ]
         if feature_version == 1:
             if not lief.__version__.startswith("0.8.3"):
-                print(f"WARNING: EMBER feature version 1 were computed using lief version 0.8.3-18d5b75")
-                print(f"WARNING:   lief version {lief.__version__} found instead. There may be slight inconsistencies")
-                print(f"WARNING:   in the feature calculations.")
+                if print_feature_warning:
+                    print(f"WARNING: EMBER feature version 1 were computed using lief version 0.8.3-18d5b75")
+                    print(f"WARNING:   lief version {lief.__version__} found instead. There may be slight inconsistencies")
+                    print(f"WARNING:   in the feature calculations.")
         elif feature_version == 2:
             self.features.append(DataDirectories())
             if not lief.__version__.startswith("0.9.0"):
-                print(f"WARNING: EMBER feature version 2 were computed using lief version 0.9.0-")
-                print(f"WARNING:   lief version {lief.__version__} found instead. There may be slight inconsistencies")
-                print(f"WARNING:   in the feature calculations.")
+                if print_feature_warning:
+                    print(f"WARNING: EMBER feature version 2 were computed using lief version 0.9.0-")
+                    print(f"WARNING:   lief version {lief.__version__} found instead. There may be slight inconsistencies")
+                    print(f"WARNING:   in the feature calculations.")
         else:
             raise Exception(f"EMBER feature version must be 1 or 2. Not {feature_version}")
         self.dim = sum([fe.dim for fe in self.features])
