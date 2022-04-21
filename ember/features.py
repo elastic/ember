@@ -16,6 +16,8 @@ import re
 import lief
 import hashlib
 import numpy as np
+import os
+import json
 from sklearn.feature_extraction import FeatureHasher
 
 LIEF_MAJOR, LIEF_MINOR, _ = lief.__version__.split('.')
@@ -487,17 +489,26 @@ class DataDirectories(FeatureType):
 class PEFeatureExtractor(object):
     ''' Extract useful features from a PE file, and return as a vector of fixed size. '''
 
-    def __init__(self, feature_version=2, print_feature_warning=True):
-        self.features = [
-            ByteHistogram(),
-            ByteEntropyHistogram(),
-            StringExtractor(),
-            GeneralFileInfo(),
-            HeaderFileInfo(),
-            SectionInfo(),
-            ImportsInfo(),
-            ExportsInfo()
-        ]
+    def __init__(self, feature_version=2, print_feature_warning=True, features_file=''):
+        self.features = []
+        features = {
+                    'ByteHistogram': ByteHistogram(),
+                    'ByteEntropyHistogram': ByteEntropyHistogram(),
+                    'StringExtractor': StringExtractor(),
+                    'GeneralFileInfo': GeneralFileInfo(),
+                    'HeaderFileInfo': HeaderFileInfo(),
+                    'SectionInfo': SectionInfo(),
+                    'ImportsInfo': ImportsInfo(),
+                    'ExportsInfo': ExportsInfo()
+            }
+        
+        if os.path.exists(features_file):
+            with open(features_file, encoding='utf8') as f:
+                x = json.load(f)
+                self.features = [features[feature] for feature in x['features'] if feature in features]
+        else:
+            self.features = list(features.values()) 
+        
         if feature_version == 1:
             if not lief.__version__.startswith("0.8.3"):
                 if print_feature_warning:
