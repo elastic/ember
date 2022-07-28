@@ -142,15 +142,22 @@ class SectionInfo(FeatureType):
             return {"entry": "", "sections": []}
 
         # properties of entry point, or if invalid, the first executable section
+
         try:
-            entry_section = lief_binary.section_from_offset(lief_binary.entrypoint).name
+            if int(LIEF_MAJOR) > 0 or (int(LIEF_MAJOR) == 0 and int(LIEF_MINOR) >= 12):
+                section = lief_binary.section_from_rva(lief_binary.entrypoint - lief_binary.imagebase)
+                if section is None:
+                    raise lief.not_found
+                entry_section = section.name
+            else: # lief < 0.12
+                entry_section = lief_binary.section_from_offset(lief_binary.entrypoint).name
         except lief.not_found:
-            # bad entry point, let's find the first executable section
-            entry_section = ""
-            for s in lief_binary.sections:
-                if lief.PE.SECTION_CHARACTERISTICS.MEM_EXECUTE in s.characteristics_lists:
-                    entry_section = s.name
-                    break
+                # bad entry point, let's find the first executable section
+                entry_section = ""
+                for s in lief_binary.sections:
+                    if lief.PE.SECTION_CHARACTERISTICS.MEM_EXECUTE in s.characteristics_lists:
+                        entry_section = s.name
+                        break
 
         raw_obj = {"entry": entry_section}
         raw_obj["sections"] = [{
@@ -259,7 +266,7 @@ class ExportsInfo(FeatureType):
         else:
             # export is a string (LIEF 0.9.0 and earlier)
             clipped_exports = [export[:10000] for export in lief_binary.exported_functions]
-        
+
 
         return clipped_exports
 
@@ -501,14 +508,14 @@ class PEFeatureExtractor(object):
                     'ImportsInfo': ImportsInfo(),
                     'ExportsInfo': ExportsInfo()
             }
-        
+
         if os.path.exists(features_file):
             with open(features_file, encoding='utf8') as f:
                 x = json.load(f)
                 self.features = [features[feature] for feature in x['features'] if feature in features]
         else:
-            self.features = list(features.values()) 
-        
+            self.features = list(features.values())
+
         if feature_version == 1:
             if not lief.__version__.startswith("0.8.3"):
                 if print_feature_warning:
