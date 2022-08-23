@@ -173,7 +173,7 @@ class SectionInfo(FeatureType):
         sections = raw_obj['sections']
         general = [
             len(sections),  # total number of sections
-            # number of sections with nonzero size
+            # number of sections with zero size
             sum(1 for s in sections if s['size'] == 0),
             # number of sections with an empty name
             sum(1 for s in sections if s['name'] == ""),

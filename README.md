@@ -10,7 +10,7 @@ This paper describes many more details about the dataset: [https://arxiv.org/abs
 
 The [LIEF](https://lief.quarkslab.com/) project is used to extract features from PE files included in the EMBER dataset. Raw features are extracted to JSON format and included in the publicly available dataset. Vectorized features can be produced from these raw features and saved in binary format from which they can be converted to CSV, dataframe, or any other format. This repository makes it easy to generate raw features and/or vectorized features from any PE file. Researchers can implement their own features, or even vectorize the existing features differently from the existing implementations.
 
-The feature calculation is versioned. Feature version 1 is calculated with the LIEF library version 0.8.3. Feature version 2 includes the additional data directory feature, updated ordinal import processing, and is calculated with LIEF library version 0.9.0.  We have verified under Windows and Linux that LIEF provides consistent feature representation for version 2 features using LIEF version 0.10.1.
+The feature calculation is versioned. Feature version 1 is calculated with the LIEF library version 0.8.3. Feature version 2 includes the additional data directory feature, updated ordinal import processing, and is calculated with LIEF library version 0.9.0.  We have verified under Windows and Linux that LIEF provides consistent feature representation for version 2 features using LIEF version 0.10.1 and that it does not on a Mac.
 
 ## Years
 
@@ -51,6 +51,12 @@ conda config --add channels conda-forge
 conda install --file requirements_conda.txt
 python setup.py install
 ```
+
+### Notes on LIEF versions
+
+LIEF is now pinned to version 0.9.0 in the provided requirements files. This default behavior will allow new users to immediately reproduce EMBER version 2 features. LIEF 0.9.0 will not install on an M1 Mac, though. For those users, a Dockerfile is now included that installs the dependencies using conda.
+
+EMBER will work with more recent releases of LIEF, but keep in mind that models trained on features generated with one version of LIEF will have unpredictable results when evaluating on features generated with another.
 
 ## Scripts
 
