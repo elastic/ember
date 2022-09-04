@@ -507,6 +507,7 @@ class PEFeatureExtractor(object):
                     'SectionInfo': SectionInfo(),
                     'ImportsInfo': ImportsInfo(),
                     'ExportsInfo': ExportsInfo()
+                    'DataDirectories': DataDirectories() #2351+30 = 2381 features (used in other research papers)
             }
 
         if os.path.exists(features_file):
