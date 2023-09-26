@@ -12,16 +12,17 @@ It may be useful to do feature selection to reduce this set of features to a mea
 for your modeling problem.
 '''
 
-import re
-import lief
 import hashlib
-import numpy as np
-import os
 import json
+import os
+import re
+
+import lief
+import numpy as np
 from sklearn.feature_extraction import FeatureHasher
 
 LIEF_MAJOR, LIEF_MINOR, _ = lief.__version__.split('.')
-LIEF_EXPORT_OBJECT = int(LIEF_MAJOR) > 0 or ( int(LIEF_MAJOR)==0 and int(LIEF_MINOR) >= 10 )
+LIEF_EXPORT_OBJECT = int(LIEF_MAJOR) > 0 or (int(LIEF_MAJOR) == 0 and int(LIEF_MINOR) >= 10)
 LIEF_HAS_SIGNATURE = int(LIEF_MAJOR) > 0 or (int(LIEF_MAJOR) == 0 and int(LIEF_MINOR) >= 11)
 
 
@@ -147,17 +148,17 @@ class SectionInfo(FeatureType):
             if int(LIEF_MAJOR) > 0 or (int(LIEF_MAJOR) == 0 and int(LIEF_MINOR) >= 12):
                 section = lief_binary.section_from_rva(lief_binary.entrypoint - lief_binary.imagebase)
                 if section is None:
-                    raise lief.not_found
+                    raise lief.lief_errors.not_found
                 entry_section = section.name
-            else: # lief < 0.12
+            else:  # lief < 0.12
                 entry_section = lief_binary.section_from_offset(lief_binary.entrypoint).name
-        except lief.not_found:
-                # bad entry point, let's find the first executable section
-                entry_section = ""
-                for s in lief_binary.sections:
-                    if lief.PE.SECTION_CHARACTERISTICS.MEM_EXECUTE in s.characteristics_lists:
-                        entry_section = s.name
-                        break
+        except lief.lief_errors.not_found:
+            # bad entry point, let's find the first executable section
+            entry_section = ""
+            for s in lief_binary.sections:
+                if lief.PE.SECTION_CHARACTERISTICS.MEM_EXECUTE in s.characteristics_lists:
+                    entry_section = s.name
+                    break
 
         raw_obj = {"entry": entry_section}
         raw_obj["sections"] = [{
@@ -267,7 +268,6 @@ class ExportsInfo(FeatureType):
             # export is a string (LIEF 0.9.0 and earlier)
             clipped_exports = [export[:10000] for export in lief_binary.exported_functions]
 
-
         return clipped_exports
 
     def process_raw_features(self, raw_obj):
@@ -318,7 +318,7 @@ class GeneralFileInfo(FeatureType):
             raw_obj['has_relocations'], raw_obj['has_resources'], raw_obj['has_signature'], raw_obj['has_tls'],
             raw_obj['symbols']
         ],
-                          dtype=np.float32)
+            dtype=np.float32)
 
 
 class HeaderFileInfo(FeatureType):
@@ -499,15 +499,15 @@ class PEFeatureExtractor(object):
     def __init__(self, feature_version=2, print_feature_warning=True, features_file=''):
         self.features = []
         features = {
-                    'ByteHistogram': ByteHistogram(),
-                    'ByteEntropyHistogram': ByteEntropyHistogram(),
-                    'StringExtractor': StringExtractor(),
-                    'GeneralFileInfo': GeneralFileInfo(),
-                    'HeaderFileInfo': HeaderFileInfo(),
-                    'SectionInfo': SectionInfo(),
-                    'ImportsInfo': ImportsInfo(),
-                    'ExportsInfo': ExportsInfo()
-            }
+            'ByteHistogram': ByteHistogram(),
+            'ByteEntropyHistogram': ByteEntropyHistogram(),
+            'StringExtractor': StringExtractor(),
+            'GeneralFileInfo': GeneralFileInfo(),
+            'HeaderFileInfo': HeaderFileInfo(),
+            'SectionInfo': SectionInfo(),
+            'ImportsInfo': ImportsInfo(),
+            'ExportsInfo': ExportsInfo()
+        }
 
         if os.path.exists(features_file):
             with open(features_file, encoding='utf8') as f:
@@ -520,22 +520,27 @@ class PEFeatureExtractor(object):
             if not lief.__version__.startswith("0.8.3"):
                 if print_feature_warning:
                     print(f"WARNING: EMBER feature version 1 were computed using lief version 0.8.3-18d5b75")
-                    print(f"WARNING:   lief version {lief.__version__} found instead. There may be slight inconsistencies")
+                    print(
+                        f"WARNING:   lief version {lief.__version__} found instead. There may be slight inconsistencies")
                     print(f"WARNING:   in the feature calculations.")
         elif feature_version == 2:
             self.features.append(DataDirectories())
             if not lief.__version__.startswith("0.9.0"):
                 if print_feature_warning:
                     print(f"WARNING: EMBER feature version 2 were computed using lief version 0.9.0-")
-                    print(f"WARNING:   lief version {lief.__version__} found instead. There may be slight inconsistencies")
+                    print(
+                        f"WARNING:   lief version {lief.__version__} found instead. There may be slight inconsistencies")
                     print(f"WARNING:   in the feature calculations.")
         else:
             raise Exception(f"EMBER feature version must be 1 or 2. Not {feature_version}")
         self.dim = sum([fe.dim for fe in self.features])
 
     def raw_features(self, bytez):
-        lief_errors = (lief.bad_format, lief.bad_file, lief.pe_error, lief.parser_error, lief.read_out_of_bound,
-                       RuntimeError)
+        lief_errors = (
+            lief.lief_errors.conversion_error, lief.lief_errors.file_error, lief.lief_errors.file_format_error,
+            lief.lief_errors.corrupted, lief.lief_errors.parsing_error, lief.lief_errors.read_out_of_bound,
+            RuntimeError)
+        # lief.bad_format, lief.bad_file, lief.pe_error, lief.parser_error, lief.read_out_of_bound
         try:
             lief_binary = lief.PE.parse(list(bytez))
         except lief_errors as e:
