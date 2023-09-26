@@ -143,16 +143,17 @@ class SectionInfo(FeatureType):
             return {"entry": "", "sections": []}
 
         # properties of entry point, or if invalid, the first executable section
-
+        not_found_error_class = lief.lief_errors.not_found if not lief.__version__.startswith("0.9.0") else lief.not_found
         try:
             if int(LIEF_MAJOR) > 0 or (int(LIEF_MAJOR) == 0 and int(LIEF_MINOR) >= 12):
                 section = lief_binary.section_from_rva(lief_binary.entrypoint - lief_binary.imagebase)
+
                 if section is None:
-                    raise lief.lief_errors.not_found
+                    raise not_found_error_class
                 entry_section = section.name
             else:  # lief < 0.12
                 entry_section = lief_binary.section_from_offset(lief_binary.entrypoint).name
-        except lief.lief_errors.not_found:
+        except not_found_error_class:
             # bad entry point, let's find the first executable section
             entry_section = ""
             for s in lief_binary.sections:
@@ -536,11 +537,15 @@ class PEFeatureExtractor(object):
         self.dim = sum([fe.dim for fe in self.features])
 
     def raw_features(self, bytez):
-        lief_errors = (
-            lief.lief_errors.conversion_error, lief.lief_errors.file_error, lief.lief_errors.file_format_error,
-            lief.lief_errors.corrupted, lief.lief_errors.parsing_error, lief.lief_errors.read_out_of_bound,
-            RuntimeError)
-        # lief.bad_format, lief.bad_file, lief.pe_error, lief.parser_error, lief.read_out_of_bound
+        if lief.__version__.startswith("0.9.0"):
+            lief_errors = (
+                lief.bad_format, lief.bad_file, lief.pe_error, lief.parser_error, lief.read_out_of_bound, RuntimeError)
+        else:
+            lief_errors = (
+                lief.lief_errors.conversion_error, lief.lief_errors.file_error, lief.lief_errors.file_format_error,
+                lief.lief_errors.corrupted, lief.lief_errors.parsing_error, lief.lief_errors.read_out_of_bound,
+                RuntimeError)
+
         try:
             lief_binary = lief.PE.parse(list(bytez))
         except lief_errors as e:
